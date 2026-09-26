@@ -32,7 +32,7 @@ class WorkflowTest(unittest.TestCase):
 
     def test_full_workflow(self):
         created = {}
-        steps = [{'op': 'create', 'as': 'instrument', 'kind': 'instrument', 'data': {'name': 'Analyzer', 'serial': 'A-1'}}, {'op': 'transition', 'target': 'instrument', 'action': 'send_calibration', 'data': {}, 'expect': 'calibrating'}, {'op': 'transition', 'target': 'instrument', 'action': 'calibrate', 'data': {'due_at': '2099-01-01', 'passed': True}, 'expect': 'active'}, {'op': 'create', 'as': 'calibration', 'kind': 'calibration', 'data': {'instrument_id': '{instrument}', 'requested_at': '2026-01-01'}}, {'op': 'transition', 'target': 'calibration', 'action': 'perform', 'data': {'result': 'passed', 'performed_at': '2026-01-02', 'uncertainty': 0.01, 'due_at': '2099-01-01'}, 'expect': 'passed'}, {'op': 'transition', 'target': 'calibration', 'action': 'approve', 'data': {'authorized_by': 'QA-1'}, 'expect': 'approved'}, {'op': 'create', 'as': 'method', 'kind': 'method', 'data': {'name': 'Assay-A', 'version': 'v1'}}, {'op': 'transition', 'target': 'method', 'action': 'validate_method', 'data': {'parameters': {'range': [0, 10]}, 'instrument_ids': ['{instrument}']}, 'expect': 'validated'}, {'op': 'create', 'as': 'result', 'kind': 'result', 'data': {'sample_id': 'S-1', 'measurement': 'initial'}}, {'op': 'transition', 'target': 'result', 'action': 'release', 'data': {'instrument_id': '{instrument}', 'method_id': '{method}', 'value': 4.2, 'unit': 'mg/L'}, 'expect': 'released'}]
+        steps = [{'op': 'create', 'as': 'instrument', 'kind': 'instrument', 'data': {'name': 'Analyzer', 'serial': 'A-1'}}, {'op': 'transition', 'target': 'instrument', 'action': 'send_calibration', 'data': {}, 'expect': 'calibrating'}, {'op': 'transition', 'target': 'instrument', 'action': 'calibrate', 'data': {'due_at': '2099-01-01', 'passed': True}, 'expect': 'active'}, {'op': 'create', 'as': 'calibration', 'kind': 'calibration', 'data': {'instrument_id': '{instrument}', 'requested_at': '2026-01-01'}}, {'op': 'transition', 'target': 'calibration', 'action': 'perform', 'data': {'result': 'passed', 'performed_at': '2026-01-02', 'uncertainty': 0.01, 'due_at': '2099-01-01'}, 'expect': 'passed'}, {'op': 'transition', 'target': 'calibration', 'action': 'approve', 'data': {'authorized_by': 'QA-1'}, 'expect': 'approved'}, {'op': 'create', 'as': 'method', 'kind': 'method', 'data': {'name': 'Assay-A', 'version': 'v2'}}, {'op': 'transition', 'target': 'method', 'action': 'validate_method', 'data': {'parameters': {'ranges': [[0, 10]]}}, 'expect': 'validated'}, {'op': 'create', 'as': 'authorization', 'kind': 'authorization', 'data': {'method_id': '{method}', 'instrument_id': '{instrument}', 'clause_no': 'M-A1-01', 'clause_version': 'v2', 'range_name': 'low range', 'lower_limit': 0, 'upper_limit': 10, 'max_uncertainty': 0.1, 'valid_until': '2099-01-01'}, 'expect': 'active'}, {'op': 'create', 'as': 'result', 'kind': 'result', 'data': {'sample_id': 'S-1', 'measurement': 'initial'}}, {'op': 'transition', 'target': 'result', 'action': 'release', 'data': {'instrument_id': '{instrument}', 'method_id': '{method}', 'value': 4.2, 'expanded_uncertainty': 0.05, 'used_at': '2026-09-26'}, 'expect': 'released'}]
         for step in steps:
             if step["op"] == "create":
                 entity = self.service.create(
@@ -52,6 +52,12 @@ class WorkflowTest(unittest.TestCase):
                 )
             if "expect" in step:
                 self.assertEqual(entity["status"], step["expect"])
+
+        released = self.service.get(created["result"])["data"]
+        self.assertEqual(released["clause_no"], "M-A1-01")
+        self.assertEqual(released["clause_version"], "v2")
+        self.assertEqual(released["method_version"], "v2")
+        self.assertEqual(released["authorization_id"], created["authorization"])
 
 
 if __name__ == "__main__":

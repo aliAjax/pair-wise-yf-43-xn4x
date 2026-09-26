@@ -27,6 +27,15 @@ class InvalidTransition(DomainError):
     """The requested state transition is not valid."""
 
 
+class ReleaseRejected(DomainError):
+    """Release was rejected by an authorization rule; the result stays pending."""
+
+    def __init__(self, reason, message):
+        super().__init__(message)
+        self.reason = reason
+        self.message = message
+
+
 class Role(str, Enum):
     viewer = "viewer"
     admin = "admin"

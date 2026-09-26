@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 from .audit import AuditTrail
-from .domain import ConflictError, NotFoundError
+from .domain import ConflictError, NotFoundError, ReleaseRejected
 from .rules import RuleEngine
 
 
@@ -42,9 +42,22 @@ class DomainService:
         if not entity:
             raise NotFoundError("entity not found: " + entity_id)
         expected = int(expected_version) if expected_version is not None else entity["version"]
-        next_status, patch = self.rules.validate_transition(
-            actor, entity, action, dict(data or {}), self._lookup
-        )
+        try:
+            next_status, patch = self.rules.validate_transition(
+                actor, entity, action, dict(data or {}), self._lookup
+            )
+        except ReleaseRejected as rejected:
+            # A rejected release does not mutate the result; it stays pending
+            # and can be resubmitted once the missing condition is fixed.
+            self.audit.record(
+                entity_id,
+                actor,
+                action + "_rejected",
+                entity["status"],
+                entity["status"],
+                {"reason": rejected.reason, "message": rejected.message},
+            )
+            raise
         merged = dict(entity["data"])
         merged.update(patch)
         updated = self.repository.update_entity(entity_id, expected, next_status, merged)

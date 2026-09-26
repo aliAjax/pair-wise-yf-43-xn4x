@@ -10,6 +10,7 @@ from .domain import (
     InvalidTransition,
     NotFoundError,
     PermissionDenied,
+    ReleaseRejected,
     ValidationError,
     Actor,
 )
@@ -65,13 +66,18 @@ def create_handler(service, rules, static_dir):
                 status = 404
             elif isinstance(exc, (ConflictError, InvalidTransition)):
                 status = 409
+            elif isinstance(exc, ReleaseRejected):
+                status = 422
             elif isinstance(exc, ValidationError):
                 status = 400
             elif isinstance(exc, DomainError):
                 status = 400
             else:
                 status = 500
-            self._send(status, {"error": str(exc), "type": type(exc).__name__})
+            payload = {"error": str(exc), "type": type(exc).__name__}
+            if isinstance(exc, ReleaseRejected):
+                payload["reason"] = exc.reason
+            self._send(status, payload)
 
         def do_GET(self):
             try:

@@ -24,7 +24,33 @@ python3 app.py --db ./data.db --port 8309
 
 ## 核心对象
 
-- `instrument`：仪器状态；`calibration`：校准记录；`method`：方法版本；`result`：检测结果。
+- `instrument`：仪器状态；`calibration`：校准记录；`method`：方法版本；`authorization`：器具与量程的授权条款；`result`：检测结果。
+
+方法换版后同一台仪器在不同量程的合格范围不同，因此方法验证不再使用通用范围，而是按
+**器具 + 方法版本 + 量程**拆成授权条款登记。创建 `authorization` 时需提供：
+
+- `clause_no`：条款编号（全局唯一）；`instrument_id` / `method_id`：授权对象
+- `range_name`：量程名称；`lower_limit` / `upper_limit`：合格上下限
+- `uncertainty_limit`：扩展不确定度上限；`expires_at`：失效日期（可选 `effective_at` 生效日期）
+- `method_version`：登记时自动固化的方法版本快照
+
+条款可由 authorizer 执行 `withdraw` 撤回。仅 `active` 且在使用日期处于有效期内的条款可用于放行。
+
+## 结果放行
+
+分析员（analyst）对 `pending` 的结果执行 `release`，数据必须包含
+`instrument_id`、`method_id`、`value`（测得值）、`expanded_uncertainty`（扩展不确定度）、
+`used_at`（使用日期，ISO 日期）。命中条件全部满足才放行：
+
+1. 仪器处于 active，最近一次校准未失败，且校准证书在使用日期内有效；
+2. 方法处于 validated（撤回的方法直接驳回）；
+3. 存在该器具 + 方法、在使用日期有效的授权条款，量程上下限覆盖测得值，
+   且扩展不确定度不超过该条款的不确定度上限（多量程重叠时取最窄量程）。
+
+仪器校准不合格、方法撤回、条款失效或条款越界均返回中文驳回原因（HTTP 400）；
+**原结果保持 `pending`，驳回原因和当次提交内容写入审计**（`release_rejected`），
+补充条件（重新校准、登记新条款、更正数据）后可用同一条结果再次提交。
+放行成功时结果数据保存 `clause_id`、`clause_no`、`method_version`。
 
 ## 主要接口
 

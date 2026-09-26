@@ -17,6 +17,11 @@
   <p>这是最小演示页面。使用浏览器或 curl 调用 JSON API。</p>
   <p><button onclick="checkHealth()">检查服务状态</button></p>
   <pre id="result">等待操作</pre>
+  <h2>放行规则</h2>
+  <p>方法验证按 <b>器具 + 方法版本 + 量程</b> 拆为授权条款 <code>authorization</code>，
+     登记上下限、扩展不确定度上限和失效日期。分析员提交测得值、扩展不确定度和使用日期，
+     命中有效条款才放行并保存条款编号与版本；校准不合格、方法撤回或条款越界时驳回，
+     结果留在 pending，补充条件后可再提交。</p>
   <h2>常用接口</h2>
   <pre>GET  /health
 GET  /api/&lt;kind&gt;
